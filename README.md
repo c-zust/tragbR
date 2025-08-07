@@ -46,8 +46,7 @@ get_optimal_values(V = 100000, E = 34000, r = 0.05, u = 0.007,
                    z0 = 0.5)
 ```
 
-> **Note**:
- Siehe **[Formalisierung](https://statdm.ji.ktzh.ch:8788/STAT/tragbarkeitsrechner/src/branch/main/Formalisierung.html)** für die ausführliche Herleitung und weitere Anwendungsbeispiele :bulb:
+> **Note**: Siehe **[Formalisierung](https://statdm.ji.ktzh.ch:8788/STAT/tragbarkeitsrechner/src/branch/main/Formalisierung.html)** für die ausführliche Herleitung und weitere Anwendungsbeispiele :bulb:
 
 
 
