@@ -1,0 +1,382 @@
+---
+title: "Formalisierung Tragbarkeitsrechner"
+format:
+  html:
+    math: 
+      method: mathjax
+      equationNumbers: true
+    grid:
+      sidebar-width: 300px
+      body-width: 1000px
+      margin-width: 300px
+      gutter-width: 1.5rem
+embed-resources: true
+toc: true
+toc-location: left
+toc-title: "Übersicht"
+
+number-sections: true
+number-depth: 3
+smooth-scroll: true
+editor: visual
+---
+
+# Ausgangslage
+
+Basierend auf Vermögen und Einkommen soll der maximal mögliche Kaufpreis einer Immobilie bestimmt werden, der langfristig tragbar ist. Als Vorbild dient der [Tragbarkeitsrechner](https://www.zkb.ch/de/private/hypotheken-immobilien/rechner-hilfsmittel/hypothekenrechner.html/) der Zürcher Kantonalbank. Es bestehen jedoch keinerlei Partnerschaften oder Abhängigkeiten, weder zur Zürcher Kantonalbank noch zu anderen Institutionen.
+
+# Maximierungsproblem
+
+\begin{equation}
+\begin{array}{c}
+\max \text{Kaufpreis} = \text{Vermögen} + \text{Hypothek} \\
+\text{s.t.} \\[1em]
+\text{Zinszahlung Hypothek} + \text{Unterhaltskosten} + \text{Amortisation} \le \text{Anteil des Einkommens}
+\end{array}
+\end{equation}
+
+Bei der Bestimmung des maximal möglichen Kaufpreises muss auch die sogenannte Budgetbedingung erfüllt werden. Diese besagt, dass die Zinsenzahlungen der Hypothek, die Unterhaltskosten sowie die Amortisation nicht grösser sein dürfen als ein gewisser Anteil des Einkommens. Dabei setzt sich die Amortisation aus der Differenz zwischen der Belehung des Hauses und dem Amortisationsgrenzwert zusammen. Während mit der Belehnung das aktuelle Verhältnis zwischen der Hypothek zum Wert der Immobilie gemeint ist, beschreibt die Amortisationsgrenze die angestrebte Belehnung nach einer bestimmten Anzahl von Jahren. Falls die Belehnung basierend auf dem maximal möglichen Kaufpreis kleiner als der festgelegte Amortisationsgrenzwert zum Ende der Amortisationsdauer ist, entfällt der Amortisationsterm. Dies kann wie folgt formalisiert werden:
+
+\begin{equation}
+\begin{array}{c}
+\underset{z}{\max} y = V + V \cdot z \cdot m \\
+\text{s.t.} \\
+\end{array}
+\end{equation}
+
+Wenn $\frac{V \cdot z \cdot m}{y} > x$:
+
+\begin{equation}
+\begin{array}{c}
+V \cdot z \cdot m \cdot r + y \cdot u + \frac{(\frac{V \cdot z \cdot m}{y} - x) \cdot y}{j} \le \alpha \cdot E \\[1em]
+0 \le z \le 1 \\
+\end{array}
+\end{equation}
+
+Andernfalls:
+
+\begin{equation}
+\begin{array}{c}
+V \cdot z \cdot m \cdot r + y \cdot u \le \alpha \cdot E \\[1em]
+0 \le z \le 1 \\
+\end{array}
+\end{equation}
+
+wobei:
+
+-   $y$: Kaufpreis
+
+-   $V$: Vermögen
+
+-   $z$: Anteil des Vermögens, der von der Bank vervielfacht wird (muss zwischen 0 und 1 liegen)
+
+-   $m$: Multiplikator gemäß Eigenmittelanforderungen der Bank
+
+-   $r$: Theoretischer maximaler Zinssatz
+
+-   $u$: Prozentsatz zur Berechnung der Unterhaltskosten
+
+-   $\frac{V \cdot z \cdot m}{y}$: Belehnung des Hauses
+
+-   $x$: Amortisationsgrenzwert (Ziel-Belehnung am Ende der Amortisationsdauer)
+
+-   $j$: Amortisationsdauer
+
+-   $\alpha$: Tragbarkeitsgrenze
+
+-   $E$: monatliches Einkommen
+
+# Umsetzung mit `NLopt` in R
+
+## Vereinfachung des Maximierungsproblems
+
+Zur Lösung des Maximierungsproblem wird [NLopt](https://nlopt.readthedocs.io/en/latest/) und das dazugehörige Package `nloptr` verwendet. Dieses bedingt, dass Ungleichheitsbedingungen in der Form $g(x) - a \le 0$ formuliert werden. Ausserdem kann $y$ mit dem äquivalenten Term $V + V \cdot z \cdot m$ ersetzt werden, damit das Problem nur noch von $z$ abhängt. Zu Gunsten der intuitiveren Interpretation der Nebenbedingungen wird $y$ jedoch an dieser Stelle noch beibehalten. Um die Fallunterscheidung bei den Nebenbedingungen zu vereinfachen, werden zwei separate Maximierungsprobleme aufgestellt: Eines **mit** und eines **ohne** Amortisationsterm. Im Maximierungsproblem mit Amortisationsterm gilt deshalb nebst der Budgetbedingung auch noch die Amortisationsbedingung, $\frac{V \cdot z \cdot m}{y} - x > 0$. Die beiden Maximierungsprobleme, welche nachfolgend in R umgesetzt werden, sehen wie folgt aus:
+
+**1. Mit Amortisation** $\frac{V \cdot z \cdot m}{y} > x$:
+
+\begin{equation}
+\begin{array}{c}
+\underset{z}{\max} y = V + V \cdot z \cdot m \\
+\text{s.t.} \\[1em]
+V \cdot z \cdot m \cdot r + y \cdot u + \frac{(\frac{V \cdot z \cdot m}{y} - x) \cdot y}{j} - \alpha \cdot E \le 0 \\[1em]
+-(\frac{V \cdot z \cdot m}{y} - x) < 0 \\[1em]
+0 \le z \le 1 \\
+\end{array}
+\end{equation}
+
+Es gilt zu beachten, dass $-(\frac{V \cdot z \cdot m}{y} - x) < 0$ nicht der Form $g(x) - a \le 0$ entspricht. Damit die Bedingungen basierend auf `nloptr` trotzdem erfüllt sind, wird in der praktischen Umsetzung der Wert 0 mit 0.000001 approximiert.
+
+**2. Ohne Amortisation**  $\frac{V \cdot z \cdot m}{y} \le x$:
+
+\begin{equation}
+\begin{array}{c}
+\underset{z}{\max} y = V + V \cdot z \cdot m \\
+\text{s.t.} \\[1em]
+V \cdot z \cdot m \cdot r + y \cdot u - \alpha \cdot E \le 0 \\[1em]
+0 \le z \le 1 \\
+\end{array}
+\end{equation}
+
+## Festlegen der Konstanten
+
+```{r}
+library(nloptr)
+
+# Parameter definieren
+V <- 100000
+E <- 34000
+r <- 0.05
+u <- 0.007
+alpha <- 0.35 
+min_eigenmittel <- 0.2
+amortisation_jahre <- 15
+amortisation_grenze <- 2/3 
+z0 <- 0.5 # Startwert für z
+
+multiplikator <- (1 - min_eigenmittel) / min_eigenmittel
+```
+
+## Objective function
+
+```{r}
+objective <- function(z, V, E, r, u, alpha, 
+                      amortisation_jahre, 
+                      amortisation_grenze, 
+                      multiplikator) {
+  
+    obj <- V + V * z * multiplikator
+
+    # nloptr löst immer nur Minimierungsprobleme, deshalb müssen alle Vor-
+    # zeichen der objective function umgekehrt werden, damit man ein 
+    # Maximiuerungsproblem hat
+    return(-obj)
+  }
+```
+
+## Constraints
+
+```{r}
+# Constraint für Maximierungsproblem MIT AMORTISATION
+  eval_g_ineq_max1 <- function(z, V, E, r, u, alpha, 
+                               amortisation_jahre, 
+                               amortisation_grenze, 
+                               multiplikator) {
+    
+    hypothek <- V * z * multiplikator
+    hauspreis <- V + hypothek
+
+    hypo_zins <- hypothek * r
+    unterhalt <- hauspreis * u
+
+    amortisation <- (hypothek / hauspreis - amortisation_grenze) *
+      hauspreis / amortisation_jahre
+
+    E_Anteil <- alpha * E
+
+    # Formulierung der Constraints
+    return(rbind(
+      # Budgetbedingung:
+      # Kosten des Hauses dürfen nicht grösser sein als Einkommenanteil
+      c(hypo_zins + unterhalt + amortisation - E_Anteil),
+      
+      # Amortisationsbedingung:
+      # Der Amortisationsterm muss grösser als 0 sein.  Wichtig: Es braucht 
+      # das "-" vor dem Vektor, damit der Ausdruck als g(x) <= 0 evaluiert wird.
+      # Der Wert 0 wird mit 0.000001 approximiert.
+      -c(hypothek / hauspreis - amortisation_grenze - 0.000001)
+    ))
+  }
+
+# Constraint für Maximierungsproblem OHNE AMORTISATION
+  eval_g_ineq_max2 <- function(z, V, E, r, u, alpha, 
+                               amortisation_jahre, 
+                               amortisation_grenze, 
+                               multiplikator) {
+    
+    hypothek <- V * z * multiplikator
+    hauspreis <- V + hypothek
+
+    hypo_zins <- hypothek * r
+    unterhalt <- hauspreis * u
+
+    E_Anteil <- alpha * E
+
+    # Formulierung des Constraints
+    return(
+      # Budgetbedingung:
+      # Kosten des Hauses dürfen nicht grösser sein als Einkommenanteil
+      c(hypo_zins + unterhalt - E_Anteil)
+    )
+  }
+
+
+  # Definiere Grenzewerte für z
+  lb <- 0 # Lower bound
+  ub <- 1 # Upper bound
+```
+
+## Solve mit nloptr
+
+```{r}
+  # MIT AMORTISATION --> 2 constraints
+  result_max1 <- nloptr::nloptr(
+    x0 = z0, # Startwert für z
+    eval_f = objective,
+    eval_g_ineq = eval_g_ineq_max1,
+    lb = lb,
+    ub = ub,
+    opts = list(
+      # Dieser Algorithmus benötigt keinen Gradienten
+      algorithm = "NLOPT_LN_COBYLA",
+      xtol_rel = 1e-6, # Konvergenztoleranz
+      xtol_abs = 1e-8,
+      maxeval = 4000 # Maximale Anzahl Iterationen
+    ),
+    V = V,
+    E = E,
+    r = r,
+    u = u,
+    alpha = alpha,
+    amortisation_jahre = amortisation_jahre,
+    amortisation_grenze = amortisation_grenze,
+    multiplikator = multiplikator
+  )
+
+
+  # OHNE AMORTISATION --> nur 1 constraint
+  result_max2 <- nloptr::nloptr(
+    x0 = z0, # Startwert für z
+    eval_f = objective,
+    eval_g_ineq = eval_g_ineq_max2,
+    lb = lb,
+    ub = ub,
+    opts = list(
+      # Dieser Algorithmus benötigt keinen Gradienten
+      algorithm = "NLOPT_LN_COBYLA",
+      xtol_rel = 1e-6, # Konvergenztoleranz
+      xtol_abs = 1e-8,
+      maxeval = 4000 # Maximale Anzahl Iterationen
+    ),
+    V = V,
+    E = E,
+    r = r,
+    u = u,
+    alpha = alpha,
+    amortisation_jahre = amortisation_jahre,
+    amortisation_grenze = amortisation_grenze,
+    multiplikator = multiplikator
+  )
+
+  constraints_max1 <- eval_g_ineq_max1(result_max1$solution, V, E, r, u, alpha, 
+                                       amortisation_jahre, 
+                                       amortisation_grenze, 
+                                       multiplikator)
+  
+  constraints_max2 <- eval_g_ineq_max2(result_max2$solution, V, E, r, u, alpha,
+                                       amortisation_jahre, 
+                                       amortisation_grenze, 
+                                       multiplikator)
+
+  result <- c(
+    z_amor = round(result_max1$solution, 3),
+    y_amor = -round(result_max1$objective, 1), # Vorzeichen umkehren, da Max-Problem
+    iterations_amor = result_max1$iterations,
+    constraint1_amor = round(constraints_max1[1, 1], 5),
+    constraint2_amor = -round(constraints_max1[2, 1], 5), # Vorzeichen umkehren, da der Constraint > 0 sein muss
+    z_no_amor = round(result_max2$solution, 3),
+    y_no_amor = -round(result_max2$objective, 1), # Vorzeichen umkehren, da Max-Problem
+    iterations_no_amor = result_max2$iterations,
+    constraint1_no_amor = round(constraints_max2, 5)
+  )
+
+result
+  
+```
+
+Der Vektor `result` fasst die Resultate der beiden separaten Maximierungsprobleme mit und ohne Amortisation zusammen. Bei verhältnismässig kleinen Einkommen-zu-Vermögensratios kann es sein, dass das verfügbare Einkommen keine Belehnung über die Amortisationsgrenze hinaus zulässt ($\rightarrow \frac{V \cdot z \cdot m}{y} - x < 0$), da sonst die Budgetbedingung nicht mehr erfüllt ist. Das heisst, dass im Maximierungsproblem **mit Amortisation** mindestens eine der Nebenbedingungen verletzt ist. In der Praxis müsste so ein zu grosser Teil des Einkommens zur Bedienung der Hypothek verwendet werden. Solange dies der Fall ist, liefert deshalb das Maximierungsproblem **ohne Amortisation** den maximal möglichen Kaufpreis. Sobald jedoch die Budget- sowie die Amortisationbedingung erfüllt ist, entspricht der maximale Kaufpreis der Lösung des ersten Maximierungsproblems.
+
+## Entscheidung optimales z und y
+
+Es gibt auch Fälle, in denen das Lösen der Maximierungsprobleme nicht notwendig ist, z.B., wenn das Einkommen grösser als das Vermögen ist (max. Kaufpreis = Vermögen / min. Eigenmittel). Zum Ermitteln des Wertes für $z$, welches den Kaufpreis maximiert, gilt es deswegen schon vor der Lösung der Maximierungsprobleme gewisse Fallunterscheidungen zu treffen:
+
+```{r}
+
+
+  if ((E == 0 | is.na(E)) & (V < 0 | is.na(V))) {
+    result <- c(
+      z_optimal = NA,
+      y_optimal = NA
+    )
+  } else {
+    # Maximierungsproblem konvergiert nicht, wenn dies der Fall ist
+    if (0.02 * V >= E | (E == 0 & V >= 0) | V == 0) {
+      result <- c(
+        z_optimal = 0,
+        y_optimal = V
+      )
+    } else {
+      if (V <= 0) {
+        result <- c(
+          z_optimal = 0,
+          y_optimal = 0
+        )
+      } else {
+        # Maximierungsproblem muss nicht gelöst werden, wenn E > V, 
+        # dann automatisch y = V * 1/min_eigenmittel
+        if (E >= V) {
+          result <- c(
+            z_optimal = 1,
+            y_optimal = V * 1/min_eigenmittel
+          )
+        } else {
+          result <- c(z_optimal = ifelse(result[["constraint1_amor"]] <= 0 & result[["constraint2_amor"]] > 0,
+                                    result[["z_amor"]],
+                                    result[["z_no_amor"]]),
+                 y_optimal  = ifelse(result[["constraint1_amor"]] <= 0 & result[["constraint2_amor"]] > 0,
+                                     result[["y_amor"]],
+                                     result[["y_no_amor"]])
+          )
+        }
+      }
+    }
+  }
+
+result
+```
+
+# Hauptfunktionen
+
+Mit den `get_optimal`-Funktionen werden alle im vorherigen Abschnitt beschriebenen Prozesse zusammengefasst und es müssen bloss noch die Inputparameter definiert werden.
+
+```{r, include=FALSE}
+devtools::load_all(".")
+
+```
+
+```{r, message=FALSE}
+
+{V <- 100000}
+E <- 34000
+r <- 0.05
+u <- 0.007
+alpha <- 0.35
+min_eigenmittel <- 0.2
+amortisation_jahre <- 15
+amortisation_grenze <- 2 / 3
+z0 <- 0.5
+
+get_optimal_values(V, E, r, u, alpha, min_eigenmittel, amortisation_jahre, amortisation_grenze, z0)
+
+get_optimal_z(V, E, r, u, alpha, min_eigenmittel, amortisation_jahre, amortisation_grenze, z0)
+
+get_optimal_y(V, E, r, u, alpha, min_eigenmittel, amortisation_jahre, amortisation_grenze, z0)
+
+```
+
+Ausserdem kann man mit `solve_max_problem` auch die detaillierten Ergebnisse der Maximierungsprobleme aufrufen.
+
+```{r}
+
+solve_max_problem(V, E, r, u, alpha, min_eigenmittel, amortisation_jahre, amortisation_grenze, z0)
+
+```
