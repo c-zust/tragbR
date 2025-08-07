@@ -17,6 +17,7 @@
 #' @return Eine Liste mit dem optimalen y und z pro Maximierungsproblem. Dazu
 #' kommen für beide Maximierungsprobleme die Werte, wenn die y und z in die
 #' jeweiligen Nebenbedingungen eingesetzt werden.
+#' @export
 solve_max_problem <- function(V, E,
                               r = 0.05, u = 0.007,
                               alpha = 0.35, min_eigenmittel = 0.2,
