@@ -13,6 +13,7 @@
 #' @return Eine Liste mit dem optimalen y und z pro Maximierungsproblem. Dazu
 #' kommen für beide Maximierungsprobleme die Werte, wenn die y und z in die
 #' jeweiligen Nebenbedingungen eingesetzt werden.
+#' @export
 get_optimal_values <- function(V, E, r, u, alpha, min_eigenmittel, amortisation_jahre, amortisation_grenze, z0) {
   if ((E == 0 | is.na(E)) & (V < 0 | is.na(V))) {
     x <- c(
