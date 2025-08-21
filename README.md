@@ -5,6 +5,9 @@ Dieses Repository enthält ein formales Modell und eine Implementierung in R zur
 
 Zum einen soll damit die zugrunde liegende Methodik zur Berechnung von Tragbarkeitsabklärungen transparent und nachvollziehbar gemacht werden. Zum anderen soll der Rechner Forschenden beispielsweise die Möglichkeit bieten, zu analysieren, wie sich die Leistbarkeit von Wohneigentum aus Nachfragesicht im Zeitverlauf verändert hat – mit anderen Worten: Was konnten sich Haushalte leisten und wie hat sich dies über die Jahre gewandelt? Dies ist nur ein Beispiel von vielen möglichen Anwendungsfeldern, für die dieser Tragbarkeitsrechner als Grundlage dienen kann.
 
+> **Note**: Das Package wird nicht vom statistischen Amt des Kantons Zürich weiterentwickelt. Bei Fragen kann man sich jedoch gerne an [datashop@statistik.zh.ch](mailto:datashop@statistik.zh.ch) wenden oder ein Issue erfassen und `c-zust` taggen. 
+
+ 
 ## Installation
 
 ```
