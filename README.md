@@ -8,7 +8,8 @@ Zum einen soll damit die zugrunde liegende Methodik zur Berechnung von Tragbarke
 ## Installation
 
 ```
-...
+remotes::install_github("statistikZH/tragbR",
+                        ref = "main")
 ```
 
 ## Inhalte
